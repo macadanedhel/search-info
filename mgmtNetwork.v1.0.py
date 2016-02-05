@@ -124,6 +124,7 @@ GlobalNetworks = []
 LABEL=False
 LOG=False
 MORELOG=False
+target=None
 #----------------------------------------------------------------------
 
 #----------------------------------------------------------------------
@@ -238,6 +239,7 @@ def IP_ICMP_mgmt (packet, TTL):
     # MGMT IP
     # -----------------------------------
 
+    myip = get_lan_ip()
     eth_length = 0
     ip_header = packet[eth_length:20+eth_length]
     
@@ -260,17 +262,18 @@ def IP_ICMP_mgmt (packet, TTL):
 
     TTLcal = 255 - ( TTL - 1 )
     ttl = iph[5]
+    protocol = iph[6]
+    s_addr = socket.inet_ntoa(iph[8]);
+    d_addr = socket.inet_ntoa(iph[9]);
 
-    if ttl > 255 and ttl > TTLcal:
+    if (ttl > 255 and ttl > TTLcal) or (myip == s_addr ):
         if MORELOG:
             write_log ( 'DISCARD PACKET : ' + 'Version : ' + str(version) + ' IP Header Length : ' + str(ihl) + ' TTL : ' + str(ttl) + ' Protocol : ' + str(protocol) + ' Source Address : ' + str(s_addr) + ' Destination Address : ' + str(d_addr) + ' Version : ' + str(version) + ' IP Header Length : ' + str(ihl) + ' TTL : ' + str(ttl) + ' Protocol : ' + str(protocol) + ' Source Address : ' + str(s_addr) + ' Destination Address : ' + str(d_addr) )
         return "*"
 
     ############# FIN DEL TRAPI ###############
     
-    protocol = iph[6]
-    s_addr = socket.inet_ntoa(iph[8]);
-    d_addr = socket.inet_ntoa(iph[9]);
+    
 
     #print 'Version : ' + str(version) + ' IP Header Length : ' + str(ihl) + ' TTL : ' + str(ttl) + ' Protocol : ' + str(protocol) + ' Source Address : ' + str(s_addr) + ' Destination Address : ' + str(d_addr)
     if VERBOSE:
@@ -341,7 +344,7 @@ def tcptracepath (hostname, host, port):
     max_hops = 10
     icmp = socket.getprotobyname('icmp')
     tcp = socket.getprotobyname('tcp')
-    ttl = TTL
+    ttl = 0
     ttl_top = HOPS
     old_message = None
     waituntil = WAITUNTIL
@@ -451,6 +454,7 @@ def tcptracepath (hostname, host, port):
                         'port': port
                     })   
             curr_host = "%s (%s)" % (curr_name, host)
+            ttl=ttl+1
         finally:
             s.close()
             recv_socket.close()
@@ -458,6 +462,7 @@ def tcptracepath (hostname, host, port):
         if LOG or MORELOG:
             write_log ( "ttl({0})\t{1} OK !!!".format (ttl, curr_host) )
         break
+
     return route
 #-----------------------------------------------------------------------
 def SimpleFileTraceroute(file, port):
@@ -494,6 +499,7 @@ def graphviz_base (graph,dot,myip):
             aux= ([node['ipaddr'], node['name'],src])
             cont=cont+1
         else:
+            # Que si es el último
             if numele==len(graph):
                 dot.attr('node', shape='doublecircle',style='filled', color='green')
                 print node['ipaddr'], node['name'],
@@ -501,7 +507,7 @@ def graphviz_base (graph,dot,myip):
                 dot.node (node['ipaddr'], node['name'])
                 if LABEL:
                     _Label=node['ipaddr']
-                dot.edge (src,node['ipaddr'],node['ipaddr'])
+                dot.edge (src,node['ipaddr'],_Label)
             else:
                 if 'status' in node :
                     if node['status'] == "OK":
@@ -511,9 +517,11 @@ def graphviz_base (graph,dot,myip):
                 if SVERBOSE:
                     print  (src,"->",node['ipaddr'], node['name'])
                 dot.node (node['ipaddr'], node['name'])
-                if LABEL:
+                if ( LABEL ):
                     _Label=node['ipaddr']
-                dot.edge (src,node['ipaddr'],node['ipaddr'])
+                if re.findall ( "\d+_\*", src ):
+                    src='0.0.0.0'
+                dot.edge (src,node['ipaddr'],_Label)
                 if fail:
                     dot.attr('node', shape='box',style='filled', color='white', fontcolor ='black')
                     
@@ -580,7 +588,6 @@ if args.WAIT:
 
 if args.log or args.morelog:
     filename =  "log_mgmtND_{0}.log".format(name_time())
-    global target
     target = open(filename, 'w')
     if args.log:
         LOG=True
@@ -589,7 +596,6 @@ if args.log or args.morelog:
 
 if args.fNI and os.path.exists(args.fNI):
     filename =  "Discover_data_{0}.log".format(name_time())
-    global target
     target = open(filename, 'w')
     with open(args.fNI) as filedata:
         for row in filedata:
@@ -646,7 +652,7 @@ if args.CHECK:
 if args.fhosts and os.path.exists(args.fhosts):
     route=SimpleFileTraceroute (args.fhosts, PORT)
     if GRAPHVIZ:
-        graphviz_network_multiple ( route )  
+        graphviz_network_multiple ( route, PORT )  
 
 if args.log or args.morelog:
     target.close()
