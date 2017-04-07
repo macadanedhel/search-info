@@ -21,9 +21,11 @@ Este está bien si peta el ordenador, genera log y fichero de pid para ver si ha
 
 ## scan.sh
 
-Script para buscar todos los sistemas derivados de la interfaz de red, sacando mac y todas las ips
+Script para buscar todos los sistemas derivados de la interfaz de red, sacando mac y todas las ips. En bash, sin privilegios, ping,arp y eso
 
 ### mgmtNetworkData.v1.0.py
+Dibuja un bonito grafo en plan traceroute ....
+```
 Opción larga | Opción abreviada | Explicación
 --fVLAN fichero |-vf| este es para el fichero ese 
 --fNI fichero |-nf| fichero con ip o nombres para buscar en el dns
@@ -40,3 +42,4 @@ Opción larga | Opción abreviada | Explicación
 --CHECK|-c', type=str, help='a simple tcptraceroute with port 23')
 --PORT|-p', type=str, help='port to check in other options')
 --WAIT|-w', type=str, help='Number of hops failed to stop')
+```
